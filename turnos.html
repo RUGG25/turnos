@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestión de Solicitud de Turnos de la DIT</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; font-size: 10pt; }
+    .card { @apply p-4 bg-white rounded-2xl shadow-md mb-4; }
+  </style>
+</head>
+<body class="bg-gray-100 p-4">
+
+  <!-- Encabezado -->
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-center text-2xl font-bold w-full uppercase">Gestión de Solicitud de Turnos de la DIT</h1>
+    <img src="https://github.com/user/logo.png?raw=true" alt="Logo" class="w-16 h-16">
+  </div>
+
+  <!-- Alerta -->
+  <div id="alerta" class="hidden mb-4 p-2 bg-green-100 text-green-800 rounded shadow">Formulario enviado correctamente.</div>
+
+  <!-- Módulo: Alta de Turnos -->
+  <div class="card">
+    <h2 class="text-lg font-semibold mb-2">📝 Alta de Turnos</h2>
+    <form id="altaTurnoForm" class="space-y-3">
+      <input name="numeroTurno" type="number" maxlength="3" placeholder="Número de Turno" required class="input">
+      <input name="numeroOficio" type="text" maxlength="20" placeholder="Número de Oficio" required class="input">
+      <label>Fecha de Recepción</label>
+      <input name="fechaRecepcion" type="date" required class="input">
+      <input name="nombreSolicitante" type="text" placeholder="Nombre del Solicitante" required class="input">
+      <input name="unidadAdministrativa" type="text" placeholder="Unidad Administrativa" required class="input">
+      <textarea name="solicitud" placeholder="Solicitud" required class="input"></textarea>
+      <select name="responsableAtencion" required class="input">
+        <option value="">Seleccione Responsable</option>
+        <option value="Ruben GG">Ruben GG</option>
+        <option value="Ivon">Ivon</option>
+        <option value="RubenCM">RubenCM</option>
+        <option value="Raul">Raul</option>
+      </select>
+      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-2xl shadow hover:bg-blue-600">Guardar Turno</button>
+    </form>
+  </div>
+
+  <!-- Módulo: Consulta y Cierre de Turnos -->
+  <div class="card">
+    <h2 class="text-lg font-semibold mb-2">📂 Consulta y Cierre de Turnos</h2>
+    <form id="cierreTurnoForm" class="space-y-3">
+      <label>Fecha de Atención</label>
+      <input name="fechaAtencion" type="date" required class="input">
+      <select name="estatus" required class="input">
+        <option value="">Seleccione Estatus</option>
+        <option value="abierto">Abierto</option>
+        <option value="cerrado">Cerrado</option>
+        <option value="conocimiento">Conocimiento</option>
+      </select>
+      <input name="medioCierre" type="text" placeholder="Medio de Cierre" required class="input">
+      <input name="observacion" type="text" placeholder="Observación" required class="input">
+      <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-2xl shadow hover:bg-green-600">Guardar Cierre</button>
+    </form>
+  </div>
+
+  <!-- Consulta -->
+  <div class="card">
+    <button onclick="consultarTurnos()" class="bg-gray-800 text-white px-4 py-2 rounded-2xl shadow hover:bg-gray-700 mb-2">🔍 Consultar Turnos</button>
+    <div id="resultadosTurnos" class="overflow-auto max-h-[400px] text-xs"></div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbxCaTOE9LaVjihtPh8bGH9arZllaLqj8H6Jz8IXjpm1L9wBwfOx6-URVY-pjK9a8gQ/exec';
+
+    function handleSubmit(formId) {
+      const form = document.getElementById(formId);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const formData = Object.fromEntries(new FormData(form).entries());
+
+        fetch(scriptURL, {
+          method: 'POST',
+          body: JSON.stringify(formData),
+          headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => {
+          document.getElementById('alerta').classList.remove('hidden');
+          form.reset();
+          setTimeout(() => document.getElementById('alerta').classList.add('hidden'), 3000);
+        })
+        .catch(error => alert('Error al enviar formulario'));
+      });
+    }
+
+    handleSubmit('altaTurnoForm');
+    handleSubmit('cierreTurnoForm');
+
+    function consultarTurnos() {
+      fetch(scriptURL)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.length) {
+            document.getElementById('resultadosTurnos').innerText = 'No hay turnos registrados.';
+            return;
+          }
+          const tabla = document.createElement('table');
+          tabla.className = 'min-w-full text-xs text-left text-gray-700 border';
+          const encabezado = document.createElement('thead');
+          encabezado.innerHTML = '<tr>' + Object.keys(data[0]).map(k => `<th class="px-2 py-1 border">${k}</th>`).join('') + '</tr>';
+          tabla.appendChild(encabezado);
+          const cuerpo = document.createElement('tbody');
+          data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = Object.values(row).map(val => `<td class="px-2 py-1 border">${val}</td>`).join('');
+            cuerpo.appendChild(tr);
+          });
+          tabla.appendChild(cuerpo);
+          const contenedor = document.getElementById('resultadosTurnos');
+          contenedor.innerHTML = '';
+          contenedor.appendChild(tabla);
+        })
+        .catch(err => alert('Error al consultar datos'));
+    }
+
+    // Aplicar clases Tailwind a inputs manualmente si lo deseas
+    document.querySelectorAll('.input').forEach(el => {
+      el.classList.add('w-full', 'p-2', 'border', 'border-gray-300', 'rounded-2xl', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500');
+    });
+  </script>
+
+</body>
+</html>
