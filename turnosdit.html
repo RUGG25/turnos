@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestión de Solicitud de Turnos de la DIT</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; font-size: 10pt; }
+    .input {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 1rem;
+      outline: none;
+    }
+    .input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+    .card {
+      padding: 1rem;
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-4">
+
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-center text-2xl font-bold w-full uppercase">Gestión de Solicitud de Turnos de la DIT</h1>
+    <img src="https://github.com/user/logo.png?raw=true" alt="Logo" class="w-16 h-16">
+  </div>
+
+  <div id="alerta" class="hidden mb-4 p-2 bg-green-100 text-green-800 rounded shadow">Formulario enviado correctamente.</div>
+
+  <!-- Módulo: Alta de Turnos -->
+  <div class="card">
+    <h2 class="text-lg font-semibold mb-2">📝 Alta de Turnos</h2>
+    <form id="altaTurnoForm" class="space-y-3">
+      <input name="numeroTurno" type="number" placeholder="Número de Turno (3 dígitos)" maxlength="3" required class="input">
+      <input name="numeroOficio" type="text" placeholder="Número de Oficio (20 caracteres)" maxlength="20" required class="input">
+      <label>Fecha de Recepción</label>
+      <input name="fechaRecepcion" type="date" required class="input">
+      <input name="nombreSolicitante" type="text" placeholder="Nombre del Solicitante" required class="input">
+      <input name="unidadAdministrativa" type="text" placeholder="Unidad Administrativa" required class="input">
+      <textarea name="solicitud" placeholder="Solicitud" required class="input"></textarea>
+      <select name="responsableAtencion" required class="input">
+        <option value="">Seleccione Responsable</option>
+        <option value="Ruben GG">Ruben GG</option>
+        <option value="Ivon">Ivon</option>
+        <option value="RubenCM">RubenCM</option>
+        <option value="Raul">Raul</option>
+      </select>
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-2xl shadow hover:bg-blue-700">Guardar Turno</button>
+    </form>
+  </div>
+
+  <!-- Módulo: Cierre de Turnos -->
+  <div class="card">
+    <h2 class="text-lg font-semibold mb-2">✅ Cierre de Turnos</h2>
+    <form id="cierreTurnoForm" class="space-y-3">
+      <input name="numeroTurno" type="number" placeholder="Número de Turno a Cerrar" required class="input">
+      <input name="fechaAtencion" type="date" placeholder="Fecha de Atención" class="input">
+      <select name="estatus" class="input" required>
+        <option value="cerrado">Cerrado</option>
+      </select>
+      <select name="atendidoPor" required class="input">
+        <option value="">Atendido por</option>
+        <option value="Ruben GG">Ruben GG</option>
+        <option value="Ivon">Ivon</option>
+        <option value="RubenCM">RubenCM</option>
+        <option value="Raul">Raul</option>
+      </select>
+      <input name="medioCierre" type="text" placeholder="Medio de Cierre" class="input">
+      <input name="observacion" type="text" placeholder="Observación de Cierre" class="input">
+      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-2xl shadow hover:bg-green-700">Guardar Cierre</button>
+    </form>
+  </div>
+
+  <!-- Módulo: Consulta y Exportación -->
+  <div class="card">
+    <div class="flex gap-2 mb-2">
+      <button onclick="consultarTurnos()" class="bg-gray-800 text-white px-4 py-2 rounded-2xl shadow hover:bg-gray-700">🔍 Consultar Turnos</button>
+      <button onclick="exportarPDF()" class="bg-red-600 text-white px-4 py-2 rounded-2xl shadow hover:bg-red-700">📄 Exportar PDF</button>
+    </div>
+    <div id="resultadosTurnos" class="overflow-auto max-h-[400px] text-xs"></div>
+  </div>
+
+  <!-- Firebase y lógica -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJYMszoPBZDR74RgeJ0iPBhC5szXlkAWM",
+      authDomain: "turnosdit-41fe5.firebaseapp.com",
+      projectId: "turnosdit-41fe5",
+      storageBucket: "turnosdit-41fe5.appspot.com",
+      messagingSenderId: "368140264116",
+      appId: "1:368140264116:web:9dfeb77ea70910f871ede1",
+      measurementId: "G-N5XN3P0R2T"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    document.getElementById('altaTurnoForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const datos = Object.fromEntries(formData.entries());
+
+      try {
+        await addDoc(collection(db, 'turnos'), {
+          ...datos,
+          fechaEnvio: new Date().toISOString()
+        });
+        document.getElementById('alerta').classList.remove('hidden');
+        e.target.reset();
+        setTimeout(() => document.getElementById('alerta').classList.add('hidden'), 3000);
+      } catch (error) {
+        alert('Error al guardar turno: ' + error);
+      }
+    });
+
+    document.getElementById('cierreTurnoForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const datos = Object.fromEntries(formData.entries());
+
+      try {
+        await addDoc(collection(db, 'cierres'), {
+          ...datos,
+          fechaCierreEnvio: new Date().toISOString()
+        });
+        document.getElementById('alerta').classList.remove('hidden');
+        e.target.reset();
+        setTimeout(() => document.getElementById('alerta').classList.add('hidden'), 3000);
+      } catch (error) {
+        alert('Error al guardar cierre: ' + error);
+      }
+    });
+
+    async function consultarTurnos() {
+      const querySnapshot = await getDocs(collection(db, 'turnos'));
+      const data = querySnapshot.docs.map(doc => doc.data());
+
+      if (!data.length) {
+        document.getElementById('resultadosTurnos').innerText = 'No hay turnos registrados.';
+        return;
+      }
+
+      const tabla = document.createElement('table');
+      tabla.className = 'min-w-full text-xs text-left text-gray-700 border';
+      const encabezado = document.createElement('thead');
+      encabezado.innerHTML = '<tr>' + Object.keys(data[0]).map(k => `<th class="px-2 py-1 border">${k}</th>`).join('') + '</tr>';
+      tabla.appendChild(encabezado);
+      const cuerpo = document.createElement('tbody');
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = Object.values(row).map(val => `<td class="px-2 py-1 border">${val}</td>`).join('');
+        cuerpo.appendChild(tr);
+      });
+      tabla.appendChild(cuerpo);
+      const contenedor = document.getElementById('resultadosTurnos');
+      contenedor.innerHTML = '';
+      contenedor.appendChild(tabla);
+    }
+
+    window.consultarTurnos = consultarTurnos;
+    window.exportarPDF = function () {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(12);
+      doc.text('Reporte de Turnos DIT', 10, 10);
+      let y = 20;
+
+      const filas = document.querySelectorAll('#resultadosTurnos table tbody tr');
+      filas.forEach((fila, i) => {
+        const celdas = fila.querySelectorAll('td');
+        celdas.forEach(celda => {
+          doc.text(celda.textContent, 10, y);
+          y += 6;
+        });
+        y += 4;
+        if (y > 270) {
+          doc.addPage();
+          y = 10;
+        }
+      });
+
+      doc.save('turnos_dit.pdf');
+    }
+
+    consultarTurnos();
+  </script>
+
+</body>
+</html>
